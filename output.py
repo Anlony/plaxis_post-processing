@@ -1,6 +1,6 @@
-s_i, g_i = new_server('localhost', 10000, password='^hB<TW9k!y4$<KY@')  # 主机input端口
+s_i, g_i = new_server('*****', *****, password='****')  # 主机input端口
 output_port = g_i.view(g_i.Phases[0])  # 获得output程序接口
-s_o, g_o = new_server('localhost', port=output_port,password='^hB<TW9k!y4$<KY@')  # 开启接口
+s_o, g_o = new_server('****', port=output_port,password='*****')  # 开启接口
 # 在output中进行数据收集
 results= {} 
 Mstage = pd.DataFrame()
