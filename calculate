@@ -1,0 +1,111 @@
+import  datetime
+import numpy as np
+import pandas as pd
+import re
+import matplotlib.pyplot as plt
+import os
+# 程序初始化
+start_time = datetime.datetime.now()
+print('程序开始时间：%s' % (start_time))
+
+folder_path = 'E:/OneDrive - 同济大学/plaxis_work/MC/cref/test/plot'
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+
+
+file_path = 'E:/OneDrive - 同济大学/plaxis_work/MC/cref/test/P-Y.xlsx'
+P_Y = pd.read_excel(file_path, index_col=[0,1])
+height = [re.findall(r'-?\d+\.?\d*', row)[0] for row in P_Y.index.get_level_values(0) if 'Height' in row]
+deepth = list(sorted(set([float(i) for i in height]),reverse=True))
+deepth = np.array([round(float(x), 3) for x in deepth])
+Height_list = [0]
+for i in range(0, len(deepth)-1):
+    height_i = (deepth[i] + deepth[i+1]) / 2
+    Height_list.append(height_i) 
+Height_list.append(-12) # 注意，需改动
+Height_array = np.array(sorted((Height_list),reverse=True))
+Height_array = [round(x, 3) for x in Height_array]
+#Height_array = np.array(np.linspace (0, -1.8, 37))
+thickness_array = []
+for i in range(0,len(Height_array)-1):
+    Height_i = Height_array[i] - Height_array[i+1]
+    thickness_array.append(Height_i)
+thickness_array = [round(x, 3) for x in thickness_array]
+Height = []
+for i in range(0,len(Height_array)-1):
+    deepth_i = (Height_array[i] + Height_array[i+1])/2
+    Height.append(deepth_i)
+thickness_array = [round(x, 2) for x in thickness_array]
+Height = np.array([round(x, 3) for x in Height])
+#Laststep = P_Y.iloc[:,-1]
+Step_number =  [int(re.findall(r'\d+', col)[0]) for col in P_Y.columns.get_level_values(0) if 'step' in col]
+Out_force = pd.DataFrame()
+for i in Step_number:
+    step_data = P_Y['step_%r' %i]
+    theta = step_data.loc[slice(None),'theta']
+    Uy = np.array(step_data.loc[(slice(None),'U')])
+    p = np.array(step_data.loc[(slice(None),'P')] * thickness_array)
+    S = np.array(step_data.loc[(slice(None),'P_S')] * thickness_array)
+    m_dis = -1 * abs(np.array(step_data.loc[(slice(None),'m_dis')] * thickness_array))
+    #m_n_dis = np.array(step_data.loc[(slice(None),'m_n_dis')] * thickness_array)
+    V = np.sum(p)+np.sum(S)
+    x = abs(Height)
+    y = np.array(step_data.loc[(slice(None),'P')]) + np.array(step_data.loc[(slice(None),'P_S')])
+    def add(arr, firstdata, lastdata):
+        arr = np.insert(arr, 0 ,firstdata)
+        arr = np.insert(arr, len(arr) ,lastdata)
+        return arr
+    x = add(x, 0, 12)  # 需根据深度调整
+    y_last = (3* y[-1] - y[-2])/2
+    y = add(y, 0, y_last) 
+    def moment(arr_x,arr_y):
+        moment_list = []
+        for i in range(0,len(arr_x)-1):
+            moment_i = (arr_y[i+1] + arr_y[i])/2 * arr_x[i] * (arr_x[i+1]-arr_x[i]) +(arr_y[i+1]/3+arr_y[i]/6) * np.power((arr_x[i+1]-arr_x[i]),2)
+            moment_list.append(moment_i)
+        moment = sum(moment_list)
+        return moment
+    M = moment(x,y) + sum(m_dis) #+ sum(m_n_dis)
+    STEP_FORCE = pd.DataFrame(pd.concat([pd.Series(V),pd.Series(M)], axis = 1))
+    STEP_FORCE.columns = ['V','M']
+    STEP_FORCE.index = ['step_%r' %i]
+    Out_force = pd.concat([Out_force, STEP_FORCE], axis = 0)
+
+file_path_MStage = 'E:/OneDrive - 同济大学/plaxis_work/MC/cref/test/MStage.xlsx'
+MStage = pd.read_excel(file_path_MStage, index_col=[0], header=[0]).iloc[-1,:]
+V_max = 2000    
+M_max = -202000
+V_pd = MStage * V_max
+M_pd = MStage * M_max
+Proposed_force = pd.concat([V_pd, M_pd], axis=1) 
+Proposed_force.columns = ['V', 'M']
+error = (Out_force-Proposed_force) / Proposed_force 
+
+writer = pd.ExcelWriter('E:/OneDrive - 同济大学/plaxis_work/MC/cref/test/error.xlsx', mode='w')  #这是最后以层为单位的输出保存路径
+Out_force.to_excel(writer, sheet_name='核算结果')
+error.to_excel(writer, sheet_name='相对误差')
+writer.save()
+
+fig1,M_error = plt.subplots()
+fig2,V_error = plt.subplots()
+M_error.plot(M_pd, error['M'])
+V_error.plot(V_pd, error['V'])
+
+M_error.set_xlabel("M")
+M_error.set_ylabel("error")
+M_error.legend()
+M_error.set_title("M_error")
+
+
+V_error.set_xlabel("V")
+V_error.set_ylabel("error")
+V_error.legend()
+V_error.set_title("V_error")
+
+
+fig1.savefig("E:/OneDrive - 同济大学/plaxis_work/MC/cref/test/plot/M_error.png" )
+fig2.savefig("E:/OneDrive - 同济大学/plaxis_work/MC/cref/test/plot/V_error.png" )
+# 程序结束
+end_time = datetime.datetime.now()
+print('程序结束时间：%s' % (end_time))
+print('程序所用时间：%s' % (end_time - start_time))
