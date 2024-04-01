@@ -58,7 +58,7 @@ for i in Step_number:
     #Moment_step = pd.DataFrame(Moment(p_array_add, s_array_add, thickness_array_add, Height, V_step, M_step))
     #Df_Moment = pd.concat((Df_Moment, Moment_step), axis=1)
     
-writer = pd.ExcelWriter('E:/OneDrive - 同济大学/plaxis_work/PPC/全荷载/h=15/ShearForce.xlsx', mode='w')
+writer = pd.ExcelWriter('E:/plaxis_work/PPC/全荷载/h=15/ShearForce.xlsx', mode='w')
 Df_ShearForce.to_excel(writer)
 writer.save()
 
